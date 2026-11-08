@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.1.0";
 const DB_NAME = "workout-log-db";
 const DB_VERSION = 1;
 const WD_MAX = 12;
@@ -132,16 +132,80 @@ async function toggleArchive(id) {
   const exercise=exercises.find(e=>e.id===id); if(!exercise)return; exercise.archived=!exercise.archived; exercise.updatedAt=new Date().toISOString(); await put("exercises",exercise); await reloadData(); renderConfiguration(); refreshWdSelect();
   showMessage("configMessage",exercise.archived?"Esercizio archiviato. Lo storico rimane disponibile.":"Esercizio riattivato.");
 }
+function dragHandleHtml() {
+  return `<button class="drag-handle" type="button" aria-label="Trascina per riordinare" title="Trascina per riordinare"><span></span><span></span><span></span><span></span><span></span><span></span></button>`;
+}
 function exerciseCard(exercise, wd = null) {
   const order=wd?` · ordine ${exerciseOrder(exercise,wd)}`:"";
-  return `<article class="exercise-card"><h4>${esc(exercise.name)}</h4><div class="exercise-subtitle">${esc(exercise.muscleGroup||"Nessun gruppo")}${order}</div><div class="meta">${(exercise.workDays||[]).map(w=>`<span class="chip">${w}</span>`).join("")}<span class="chip">${exercise.defaultSets||3} serie</span><span class="chip">rec. ${exercise.restSeconds||0}s</span></div>${exercise.equipmentMeasure?`<div class="exercise-subtitle"><strong>Misura attrezzo:</strong> ${esc(exercise.equipmentMeasure)}</div>`:""}<div class="card-actions"><button data-edit="${exercise.id}">Modifica</button><button data-archive="${exercise.id}">${exercise.archived?"Riattiva":"Archivia"}</button></div></article>`;
+  const reorder=wd?`${dragHandleHtml()}<div class="move-buttons"><button type="button" data-move="up" aria-label="Sposta su">↑</button><button type="button" data-move="down" aria-label="Sposta giù">↓</button></div>`:"";
+  return `<article class="exercise-card" data-exercise-id="${exercise.id}"${wd?` data-wd="${wd}"`:""}><div class="exercise-card-main">${reorder}<div class="exercise-card-content"><h4>${esc(exercise.name)}</h4><div class="exercise-subtitle">${esc(exercise.muscleGroup||"Nessun gruppo")}${order}</div><div class="meta">${(exercise.workDays||[]).map(w=>`<span class="chip">${w}</span>`).join("")}<span class="chip">${exercise.defaultSets||3} serie</span><span class="chip">rec. ${exercise.restSeconds||0}s</span></div>${exercise.equipmentMeasure?`<div class="exercise-subtitle"><strong>Misura attrezzo:</strong> ${esc(exercise.equipmentMeasure)}</div>`:""}<div class="card-actions"><button data-edit="${exercise.id}">Modifica</button><button data-archive="${exercise.id}">${exercise.archived?"Riattiva":"Archivia"}</button></div></div></div></article>`;
+}
+async function saveWdOrder(list, wd) {
+  const cards=[...list.querySelectorAll('.exercise-card[data-exercise-id]')];
+  for(let i=0;i<cards.length;i++) {
+    const exercise=exercises.find(e=>e.id===cards[i].dataset.exerciseId);
+    if(!exercise) continue;
+    exercise.orderByWd={...(exercise.orderByWd||{}),[wd]:i+1};
+    exercise.updatedAt=new Date().toISOString();
+    await put('exercises',exercise);
+  }
+  await reloadData();
+  renderConfiguration();
+  refreshWdSelect($("workDaySelect").value || null);
+  showMessage('configMessage',`Ordine di ${wd} aggiornato.`);
+}
+function moveCard(card, direction) {
+  const list=card.parentElement, sibling=direction==='up'?card.previousElementSibling:card.nextElementSibling;
+  if(!sibling) return;
+  if(direction==='up') list.insertBefore(card,sibling); else list.insertBefore(sibling,card);
+  saveWdOrder(list,card.dataset.wd);
+}
+function enableDragSorting(list, wd) {
+  list.querySelectorAll('.exercise-card').forEach(card=>{
+    const handle=card.querySelector('.drag-handle');
+    if(!handle) return;
+    handle.addEventListener('pointerdown',event=>{
+      event.preventDefault();
+      handle.setPointerCapture?.(event.pointerId);
+      const rect=card.getBoundingClientRect();
+      card.classList.add('dragging');
+      const ghost=card.cloneNode(true);
+      ghost.classList.add('drag-ghost');
+      ghost.style.width=`${rect.width}px`;
+      ghost.style.left=`${rect.left}px`;
+      ghost.style.top=`${rect.top}px`;
+      document.body.appendChild(ghost);
+      const offsetY=event.clientY-rect.top;
+      const move=ev=>{
+        ghost.style.top=`${ev.clientY-offsetY}px`;
+        ghost.style.left=`${rect.left}px`;
+        ghost.style.pointerEvents='none';
+        const target=document.elementFromPoint(ev.clientX,ev.clientY)?.closest('.exercise-card');
+        if(!target||target===card||target.parentElement!==list)return;
+        const targetRect=target.getBoundingClientRect();
+        list.insertBefore(card,ev.clientY<targetRect.top+targetRect.height/2?target:target.nextElementSibling);
+      };
+      const finish=async()=>{
+        handle.removeEventListener('pointermove',move);
+        handle.removeEventListener('pointerup',finish);
+        handle.removeEventListener('pointercancel',finish);
+        ghost.remove(); card.classList.remove('dragging');
+        await saveWdOrder(list,wd);
+      };
+      handle.addEventListener('pointermove',move);
+      handle.addEventListener('pointerup',finish,{once:true});
+      handle.addEventListener('pointercancel',finish,{once:true});
+    });
+  });
 }
 function renderConfiguration() {
   const wds=getActiveWds();
-  $("activeExercises").innerHTML=wds.length?wds.map(wd=>`<section class="config-group"><h3>${wd} <span class="badge">${exercisesForWd(wd).length} esercizi</span></h3><div class="exercise-cards">${exercisesForWd(wd).map(e=>exerciseCard(e,wd)).join("")}</div></section>`).join(""):`<div class="empty-state">Nessun esercizio configurato. Crea il primo esercizio e assegnalo a un Work Day.</div>`;
+  $("activeExercises").innerHTML=wds.length?wds.map(wd=>`<section class="config-group" data-config-wd="${wd}"><div class="config-group-heading"><h3>${wd} <span class="badge">${exercisesForWd(wd).length} esercizi</span></h3><span class="drag-help">Trascina dalla maniglia a 6 punti</span></div><div class="exercise-cards sortable-list" data-sort-wd="${wd}">${exercisesForWd(wd).map(e=>exerciseCard(e,wd)).join("")}</div></section>`).join(""):`<div class="empty-state">Nessun esercizio configurato. Crea il primo esercizio e assegnalo a un Work Day.</div>`;
   const archived=exercises.filter(e=>e.archived); $("archivedExercises").innerHTML=archived.length?archived.map(e=>exerciseCard(e)).join(""):`<div class="empty-state">Nessun esercizio archiviato.</div>`;
   document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openExerciseForm(exercises.find(e=>e.id===b.dataset.edit)));
   document.querySelectorAll("[data-archive]").forEach(b=>b.onclick=()=>toggleArchive(b.dataset.archive));
+  document.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>moveCard(b.closest('.exercise-card'),b.dataset.move));
+  document.querySelectorAll('[data-sort-wd]').forEach(list=>enableDragSorting(list,list.dataset.sortWd));
 }
 
 function bestHistoricalSet(exerciseId, beforeDate = null) {

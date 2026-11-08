@@ -1,9 +1,10 @@
-WORKOUT LOG — PWA v1.0
+WORKOUT LOG — PWA v1.1
 ======================
 
 FUNZIONI
 - Configurazione esercizi associabili a uno o più Work Day (WD1-WD12).
-- Ordine distinto per ciascun Work Day.
+- Ordine distinto per ciascun Work Day, modificabile con numero, pulsanti o trascinamento.
+- Maniglia di trascinamento con 6 punti disposti in due colonne da 3, compatibile con touch e mouse.
 - Misura attrezzo, recupero, serie predefinite, target ripetizioni e note.
 - Esercizi archiviabili senza perdita dello storico; archivio nascosto fino alla pressione del pulsante.
 - Una sola sessione al giorno.
@@ -36,3 +37,11 @@ I dati sono salvati esclusivamente nel browser del dispositivo. La cancellazione
 
 NOTA SUL WORK DAY
 La sessione salva il WD eseguito, ma lo storico dell’esercizio non dipende dal WD. Spostare un esercizio da un WD a un altro non modifica né frammenta le prestazioni precedenti.
+
+
+NOVITÀ VERSIONE 1.1
+- Riordino diretto degli esercizi dentro ogni Work Day tramite trascinamento.
+- Maniglia dedicata a sei punti per evitare spostamenti accidentali.
+- Salvataggio automatico dell’ordine al rilascio.
+- Pulsanti su/giù come alternativa accessibile al drag-and-drop.
+- Compatibilità completa con database e backup della versione 1.0.
