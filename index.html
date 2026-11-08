@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#14261f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Workout Log">
+  <title>Workout Log</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <p class="eyebrow">Daily workout log</p>
+    <h1>Workout Log</h1>
+  </div>
+  <div class="header-actions">
+    <span id="connectionBadge" class="badge">Offline pronta</span>
+    <button id="installBtn" class="button secondary hidden" type="button">Installa</button>
+  </div>
+</header>
+
+<main class="shell">
+  <nav class="tabs" aria-label="Sezioni">
+    <button class="tab active" data-panel="tracking" type="button">Tracciatura</button>
+    <button class="tab" data-panel="configuration" type="button">Configurazione</button>
+    <button class="tab" data-panel="analysis" type="button">Analisi</button>
+    <button class="tab" data-panel="backup" type="button">Backup e restore</button>
+  </nav>
+
+  <section id="tracking" class="panel active">
+    <div class="section-heading">
+      <div><p class="eyebrow">Allenamento</p><h2>Registra la sessione</h2></div>
+      <span id="trackingStatus" class="badge">Nuova sessione</span>
+    </div>
+    <div class="selector-grid">
+      <label class="field"><span>Data</span><input id="workoutDate" type="date"></label>
+      <label class="field"><span>Work Day</span><select id="workDaySelect"><option value="">Configura prima gli esercizi</option></select></label>
+    </div>
+    <p id="workDayHint" class="hint">Vengono mostrati solo i Work Day con almeno un esercizio attivo.</p>
+    <div id="workoutExercises" class="workout-list"></div>
+    <label class="field session-notes"><span>Note della sessione</span><textarea id="workoutNotes" rows="3" maxlength="800" placeholder="Sensazioni, tecnica, eventuali limitazioni..."></textarea></label>
+    <div class="actions sticky-actions">
+      <button id="saveWorkoutBtn" class="button primary" type="button">Salva allenamento</button>
+      <button id="deleteWorkoutBtn" class="button danger ghost hidden" type="button">Elimina allenamento</button>
+    </div>
+    <p id="trackingMessage" class="message" role="status"></p>
+  </section>
+
+  <section id="configuration" class="panel">
+    <div class="section-heading">
+      <div><p class="eyebrow">Programmazione</p><h2>Configura gli esercizi</h2></div>
+      <button id="newExerciseBtn" class="button primary" type="button">Nuovo esercizio</button>
+    </div>
+    <div id="exerciseFormCard" class="form-card hidden">
+      <div class="form-title-row"><h3 id="exerciseFormTitle">Nuovo esercizio</h3><button id="closeExerciseFormBtn" class="icon-button" type="button" aria-label="Chiudi">×</button></div>
+      <form id="exerciseForm">
+        <input id="exerciseId" type="hidden">
+        <div class="form-grid">
+          <label class="field field-wide"><span>Nome esercizio *</span><input id="exerciseName" required maxlength="100" placeholder="Es. Panca piana"></label>
+          <label class="field"><span>Gruppo muscolare</span><input id="muscleGroup" maxlength="60" placeholder="Es. Petto"></label>
+          <label class="field"><span>Misura attrezzo</span><input id="equipmentMeasure" maxlength="120" placeholder="Es. panca a 30° / altezza 4"></label>
+          <label class="field"><span>Serie predefinite</span><input id="defaultSets" type="number" min="1" max="20" value="3"></label>
+          <label class="field"><span>Recupero tra le serie</span><div class="input-suffix"><input id="restSeconds" type="number" min="0" max="3600" step="5" value="90"><span>sec</span></div></label>
+          <label class="field"><span>Ripetizioni obiettivo</span><input id="targetReps" maxlength="30" placeholder="Es. 6-8"></label>
+          <label class="field"><span>Incremento suggerito</span><div class="input-suffix"><input id="weightIncrement" type="number" min="0" max="100" step="0.25"><span>kg</span></div></label>
+          <label class="field field-wide"><span>Note tecniche</span><textarea id="exerciseNotes" rows="2" maxlength="500"></textarea></label>
+        </div>
+        <fieldset class="wd-fieldset">
+          <legend>Work Day associati *</legend>
+          <div id="wdCheckboxes" class="wd-grid"></div>
+          <p class="hint">Uno stesso esercizio può appartenere a più Work Day. L’ordine è configurabile separatamente per ogni WD.</p>
+          <div id="wdOrders" class="wd-orders"></div>
+        </fieldset>
+        <div class="actions"><button class="button primary" type="submit">Salva esercizio</button><button id="cancelExerciseBtn" class="button secondary" type="button">Annulla</button></div>
+      </form>
+    </div>
+    <div id="activeExercises" class="config-groups"></div>
+    <div class="archive-toggle-row"><button id="toggleArchiveBtn" class="button secondary" type="button">Mostra esercizi archiviati</button></div>
+    <div id="archivedSection" class="hidden"><h3>Esercizi archiviati</h3><div id="archivedExercises" class="exercise-cards"></div></div>
+    <p id="configMessage" class="message" role="status"></p>
+  </section>
+
+  <section id="analysis" class="panel">
+    <div class="section-heading">
+      <div><p class="eyebrow">Progressioni</p><h2>Analisi degli esercizi</h2></div>
+      <label class="field compact-field"><span>Periodo</span><select id="analysisPeriod"><option value="all">Tutto lo storico</option><option value="30">Ultimi 30 giorni</option><option value="90">Ultimi 90 giorni</option><option value="365">Ultimo anno</option></select></label>
+    </div>
+    <div id="analysisEmpty" class="empty-state">Registra almeno un allenamento per visualizzare le analisi.</div>
+    <div id="analysisContent" class="hidden">
+      <div class="table-card"><div class="table-wrap"><table><thead><tr><th>Esercizio</th><th>Max kg</th><th>Max reps</th><th>Max volume sessione</th><th>Sessioni</th><th>Ultima</th></tr></thead><tbody id="analysisTableBody"></tbody></table></div></div>
+      <article id="exerciseDetail" class="detail-card hidden">
+        <div class="detail-heading"><div><p class="eyebrow">Dettaglio</p><h3 id="detailTitle"></h3></div><button id="closeDetailBtn" class="icon-button" type="button">×</button></div>
+        <div id="detailKpis" class="kpi-grid"></div>
+        <div class="chart-grid">
+          <div class="chart-card"><h4>Progressione: miglior serie per sessione</h4><canvas id="progressChart" width="900" height="360"></canvas><p id="progressEmpty" class="empty-chart hidden">Dati insufficienti.</p></div>
+          <div class="chart-card"><h4>Volume storico per sessione</h4><canvas id="volumeChart" width="900" height="360"></canvas><p id="volumeEmpty" class="empty-chart hidden">Dati insufficienti.</p></div>
+        </div>
+        <div class="table-card"><h4>Storico dell’esercizio</h4><div class="table-wrap"><table><thead><tr><th>Data</th><th>WD</th><th>Serie</th><th>Miglior peso × reps</th><th>Volume</th></tr></thead><tbody id="detailHistoryBody"></tbody></table></div></div>
+      </article>
+    </div>
+  </section>
+
+  <section id="backup" class="panel">
+    <div class="section-heading"><div><p class="eyebrow">Sicurezza dati</p><h2>Backup e restore</h2></div><span id="lastBackupBadge" class="badge">Mai eseguito</span></div>
+    <div id="backupReminder" class="notice hidden"><strong>È il momento di fare un backup.</strong><span>Sono trascorsi almeno 7 giorni dall’ultimo salvataggio.</span></div>
+    <div class="backup-grid">
+      <article class="action-card"><h3>Esporta</h3><p>JSON conserva l’intero archivio; CSV crea una riga per ogni serie.</p><div class="stack-actions"><button id="exportJsonBtn" class="button primary" type="button">Esporta JSON</button><button id="shareJsonBtn" class="button secondary" type="button">Condividi JSON</button><button id="exportCsvBtn" class="button secondary" type="button">Esporta CSV</button></div></article>
+      <article class="action-card"><h3>Backup settimanale</h3><p id="autoBackupSupport">Puoi autorizzare un file di destinazione sui browser compatibili. Il controllo avviene all’apertura dell’app.</p><div class="stack-actions"><button id="configureBackupBtn" class="button primary" type="button">Configura destinazione</button><button id="runAutoBackupBtn" class="button secondary" type="button">Esegui ora</button></div></article>
+      <article class="action-card"><h3>Importa</h3><p>Importa un backup JSON o un CSV esportato dall’app.</p><label class="field"><span>Modalità</span><select id="importMode"><option value="merge">Unisci con i dati presenti</option><option value="replace">Sostituisci l’archivio</option></select></label><label class="file-picker">Scegli file<input id="importFile" type="file" accept=".json,.csv,application/json,text/csv"></label></article>
+      <article class="action-card danger-zone"><h3>Cancella archivio</h3><p>Elimina esercizi, allenamenti e impostazioni dal dispositivo.</p><button id="deleteAllBtn" class="button danger" type="button">Cancella tutto</button></article>
+    </div>
+    <div class="privacy-card"><h3>Dove sono i dati?</h3><p>I dati restano nel database locale del browser e sono disponibili offline. La cancellazione dei dati del browser può rimuoverli: conserva backup periodici.</p></div>
+    <p id="backupMessage" class="message" role="status"></p>
+  </section>
+</main>
+
+<footer><span>Workout Log v1.0</span><span id="footerStatus">Database locale</span></footer>
+
+<dialog id="confirmDialog"><form method="dialog" class="dialog-card"><h2 id="confirmTitle">Conferma</h2><p id="confirmText"></p><label id="confirmWordField" class="field hidden"><span>Scrivi CANCELLA</span><input id="confirmWord" autocomplete="off"></label><div class="actions"><button class="button secondary" value="cancel">Annulla</button><button id="confirmActionBtn" class="button danger" value="confirm">Conferma</button></div></form></dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
