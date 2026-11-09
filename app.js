@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
 const DB_NAME = "workout-log-db";
 const DB_VERSION = 1;
 const WD_MAX = 12;
@@ -11,6 +11,9 @@ let deferredInstallPrompt = null;
 let pendingConfirmAction = null;
 let timerInterval = null;
 let selectedDetailExerciseId = null;
+let wakeLock = null;
+let keepScreenAwake = true;
+let audioContext = null;
 
 const $ = id => document.getElementById(id);
 const localISODate = (date = new Date()) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -243,7 +246,8 @@ function loadWorkoutForm(date,wd) {
 }
 function renderWorkoutExercises(entries) {
   const container=$("workoutExercises");
-  if(!entries.length){container.innerHTML='<div class="empty-state">Seleziona un Work Day per caricare gli esercizi.</div>';return;}
+  if(!entries.length){container.innerHTML='<div class="empty-state">Seleziona un Work Day per caricare gli esercizi.</div>';$('workoutSummary').classList.add('hidden');updateWorkoutTotal();return;}
+  $('workoutSummary').classList.remove('hidden');
   container.innerHTML=entries.map(entry=>{
     const ex=exercises.find(e=>e.id===entry.exerciseId); const title=ex?.name||entry.nameSnapshot||"Esercizio archiviato";
     return `<article class="workout-exercise" data-exercise-id="${entry.exerciseId}" data-name="${esc(title)}"><header class="exercise-header"><div><h3>${esc(title)}</h3><div class="exercise-subtitle">${ex?.equipmentMeasure?`Misura attrezzo: ${esc(ex.equipmentMeasure)} · `:""}Recupero: ${ex?.restSeconds||0}s${ex?.targetReps?` · Target: ${esc(ex.targetReps)} reps`:""}</div></div><button class="timer-button" data-timer="${ex?.restSeconds||0}" type="button">Timer ${ex?.restSeconds||0}s</button></header><div class="sets">${(entry.sets||[]).map((s,i)=>setRowHtml(s,i)).join("")}</div><footer class="exercise-footer"><button class="add-set" type="button">+ Aggiungi serie</button><span class="volume-label">Volume: <strong class="exercise-volume">0 kg</strong></span></footer><label class="field" style="padding:0 14px 14px"><span>Note esercizio</span><input class="exercise-note" maxlength="300" value="${esc(entry.notes||"")}"></label></article>`;
@@ -255,21 +259,47 @@ function renderWorkoutExercises(entries) {
     card.querySelectorAll("input").forEach(i=>i.addEventListener("input",()=>updateCardVolume(card)));
     card.querySelector(".timer-button").onclick=()=>startTimer(num(card.querySelector(".timer-button").dataset.timer)); updateCardVolume(card);
   });
+  updateWorkoutTotal();
 }
 function setRowHtml(set,index) { return `<div class="set-row" data-set-id="${set.id||uuid()}"><div class="set-number">${index+1}</div><label><span class="small-label">Ripetizioni</span><input class="set-reps" type="number" min="0" max="1000" inputmode="numeric" value="${esc(set.reps)}"></label><label><span class="small-label">Peso kg</span><input class="set-weight" type="number" min="0" max="2000" step="0.25" inputmode="decimal" value="${esc(set.weight)}"></label><label class="set-rir"><span class="small-label">RIR</span><input class="set-rir-input" type="number" min="0" max="20" value="${esc(set.rir)}"></label><button class="remove-set" type="button" aria-label="Rimuovi serie">×</button></div>`; }
 function renumberSets(card){card.querySelectorAll(".set-row").forEach((r,i)=>r.querySelector(".set-number").textContent=i+1)}
 function addSet(card){const sets=card.querySelector(".sets");const last=sets.lastElementChild;const temp=document.createElement("div");temp.innerHTML=setRowHtml({id:uuid(),reps:last?.querySelector(".set-reps").value||"",weight:last?.querySelector(".set-weight").value||"",rir:last?.querySelector(".set-rir-input").value||""},sets.children.length);const row=temp.firstElementChild;sets.appendChild(row);row.querySelector(".remove-set").onclick=()=>removeSet(row);row.querySelectorAll("input").forEach(i=>i.addEventListener("input",()=>updateCardVolume(card)));renumberSets(card);updateCardVolume(card)}
 function removeSet(row){const card=row.closest(".workout-exercise");if(card.querySelectorAll(".set-row").length<=1)return;row.remove();renumberSets(card);updateCardVolume(card)}
-function updateCardVolume(card){const volume=[...card.querySelectorAll(".set-row")].reduce((sum,r)=>sum+num(r.querySelector(".set-reps").value)*num(r.querySelector(".set-weight").value),0);card.querySelector(".exercise-volume").textContent=formatKg(round(volume))}
+function updateCardVolume(card){const volume=[...card.querySelectorAll(".set-row")].reduce((sum,r)=>sum+num(r.querySelector(".set-reps").value)*num(r.querySelector(".set-weight").value),0);card.querySelector(".exercise-volume").textContent=formatKg(round(volume));updateWorkoutTotal()}
+function updateWorkoutTotal(){
+  const rows=[...$('workoutExercises').querySelectorAll('.set-row')];
+  const total=rows.reduce((sum,row)=>sum+num(row.querySelector('.set-reps')?.value)*num(row.querySelector('.set-weight')?.value),0);
+  const completed=rows.filter(row=>num(row.querySelector('.set-reps')?.value)>0||num(row.querySelector('.set-weight')?.value)>0).length;
+  $('workoutTotalVolume').textContent=formatKg(round(total));
+  $('workoutTotalSets').textContent=completed;
+  return round(total);
+}
 function collectWorkout() {
   const date=$("workoutDate").value, workDay=$("workDaySelect").value; if(!date||!workDay)throw new Error("Seleziona data e Work Day.");
   const entries=[...$("workoutExercises").querySelectorAll(".workout-exercise")].map(card=>({exerciseId:card.dataset.exerciseId,nameSnapshot:card.dataset.name,notes:card.querySelector(".exercise-note").value.trim(),sets:[...card.querySelectorAll(".set-row")].map((row,i)=>({id:row.dataset.setId||uuid(),number:i+1,reps:num(row.querySelector(".set-reps").value),weight:num(row.querySelector(".set-weight").value),rir:row.querySelector(".set-rir-input").value===""?null:num(row.querySelector(".set-rir-input").value)})).filter(s=>s.reps>0||s.weight>0)})).filter(e=>e.sets.length);
   if(!entries.length)throw new Error("Inserisci almeno una serie.");
-  const old=workouts.find(w=>w.date===date); return {date,workDay,exercises:entries,notes:$("workoutNotes").value.trim(),createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+  const old=workouts.find(w=>w.date===date); return {date,workDay,exercises:entries,totalVolume:round(entries.flatMap(e=>e.sets).reduce((sum,set)=>sum+num(set.reps)*num(set.weight),0)),notes:$("workoutNotes").value.trim(),createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
 }
-async function saveWorkout(){try{const record=collectWorkout();const existing=workouts.find(w=>w.date===record.date);if(existing&&existing.workDay!==record.workDay&&!confirm(`In questa data è già presente ${existing.workDay}. Sostituirlo con ${record.workDay}?`))return;await put("workouts",record);await reloadData();refreshWdSelect(record.workDay);showMessage("trackingMessage","Allenamento salvato.");refreshAnalysis()}catch(e){showMessage("trackingMessage",e.message||"Impossibile salvare.",true)}}
+async function saveWorkout(){try{const record=collectWorkout();const existing=workouts.find(w=>w.date===record.date);if(existing&&existing.workDay!==record.workDay&&!confirm(`In questa data è già presente ${existing.workDay}. Sostituirlo con ${record.workDay}?`))return;await put("workouts",record);await reloadData();refreshWdSelect(record.workDay);showMessage("trackingMessage",`Allenamento salvato · volume totale ${formatKg(record.totalVolume)}.`);refreshAnalysis()}catch(e){showMessage("trackingMessage",e.message||"Impossibile salvare.",true)}}
 async function deleteCurrentWorkout(){const date=$("workoutDate").value;await del("workouts",date);await reloadData();refreshWdSelect();showMessage("trackingMessage","Allenamento eliminato.")}
-function startTimer(seconds){if(!seconds)return;clearInterval(timerInterval);const overlay=document.createElement("div");overlay.className="timer-overlay";overlay.innerHTML=`<div class="timer-card"><p>Recupero</p><div class="timer-value">${seconds}</div><button class="button secondary" type="button">Chiudi</button></div>`;document.body.appendChild(overlay);let left=seconds;const close=()=>{clearInterval(timerInterval);overlay.remove()};overlay.querySelector("button").onclick=close;timerInterval=setInterval(()=>{left--;overlay.querySelector(".timer-value").textContent=left;if(left<=0){clearInterval(timerInterval);overlay.querySelector(".timer-value").textContent="Via!";if(navigator.vibrate)navigator.vibrate([200,100,200])}},1000)}
+function prepareAudio(){
+  try{audioContext=audioContext||new (window.AudioContext||window.webkitAudioContext)();if(audioContext.state==='suspended')audioContext.resume()}catch(e){}
+}
+function playTimerSound(){
+  try{
+    prepareAudio(); if(!audioContext)return;
+    const now=audioContext.currentTime;
+    [0,.22,.44].forEach((delay,index)=>{const oscillator=audioContext.createOscillator(),gain=audioContext.createGain();oscillator.type='sine';oscillator.frequency.value=index===2?1046:880;gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(.35,now+delay+.015);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+.17);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(now+delay);oscillator.stop(now+delay+.19)});
+  }catch(e){}
+}
+function startTimer(seconds){if(!seconds)return;prepareAudio();requestWakeLock();clearInterval(timerInterval);const overlay=document.createElement("div");overlay.className="timer-overlay";overlay.innerHTML=`<div class="timer-card"><p>Recupero</p><div class="timer-value">${seconds}</div><div class="timer-progress"><span></span></div><button class="button secondary" type="button">Chiudi</button></div>`;document.body.appendChild(overlay);let left=seconds;const bar=overlay.querySelector('.timer-progress span');const close=()=>{clearInterval(timerInterval);overlay.remove()};overlay.querySelector("button").onclick=close;timerInterval=setInterval(()=>{left--;overlay.querySelector(".timer-value").textContent=Math.max(0,left);bar.style.width=`${Math.max(0,left/seconds*100)}%`;if(left<=0){clearInterval(timerInterval);overlay.querySelector(".timer-value").textContent="Via!";overlay.classList.add('timer-finished');playTimerSound();if(navigator.vibrate)navigator.vibrate([250,120,250,120,400])}},1000)}
+async function requestWakeLock(){
+  if(!keepScreenAwake||document.visibilityState!=='visible')return;
+  if(!('wakeLock'in navigator)){$('wakeLockStatus').textContent='Schermo attivo: non supportato';return}
+  try{if(!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null;updateWakeLockStatus()})}updateWakeLockStatus()}catch(e){wakeLock=null;updateWakeLockStatus(true)}
+}
+function updateWakeLockStatus(failed=false){$('wakeLockStatus').textContent=wakeLock?'Schermo sempre attivo':failed?'Schermo attivo: autorizzazione non disponibile':'Schermo attivo: in attesa'}
+async function handleVisibilityChange(){if(document.visibilityState==='visible')await requestWakeLock()}
 
 function filteredWorkouts(){const p=$("analysisPeriod").value;if(p==="all")return workouts;const cutoff=new Date();cutoff.setDate(cutoff.getDate()-Number(p));return workouts.filter(w=>parseDate(w.date)>=cutoff)}
 function exerciseSessions(exerciseId, source=filteredWorkouts()){return source.map(w=>{const entry=(w.exercises||[]).find(e=>e.exerciseId===exerciseId);if(!entry)return null;const sets=entry.sets||[];const valid=sets.filter(s=>s.reps>0||s.weight>0);const best=[...valid].sort((a,b)=>num(b.weight)-num(a.weight)||num(b.reps)-num(a.reps))[0];return {date:w.date,workDay:w.workDay,sets:valid,best,volume:round(valid.reduce((sum,s)=>sum+num(s.weight)*num(s.reps),0))}}).filter(Boolean)}
@@ -282,7 +312,21 @@ function exportPayload(){return {app:"Workout Log",version:APP_VERSION,exportedA
 function downloadBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 async function markBackup(){await setSetting("lastBackupAt",new Date().toISOString());refreshBackupStatus()}
 async function exportJson(){downloadBlob(new Blob([JSON.stringify(exportPayload(),null,2)],{type:"application/json"}),`workout-log-backup-${localISODate()}.json`);await markBackup();showMessage("backupMessage","Backup JSON esportato.")}
-async function shareJson(){const file=new File([JSON.stringify(exportPayload(),null,2)],`workout-log-backup-${localISODate()}.json`,{type:"application/json"});if(navigator.share&&navigator.canShare?.({files:[file]})){await navigator.share({title:"Backup Workout Log",files:[file]});await markBackup()}else await exportJson()}
+async function shareJson(){
+  const name=`workout-log-backup-${localISODate()}.json`;
+  const blob=new Blob([JSON.stringify(exportPayload(),null,2)],{type:'application/json'});
+  try{
+    if(typeof navigator.share!=='function')throw new Error('share-unavailable');
+    const file=new File([blob],name,{type:'application/json'});
+    const shareData={title:'Backup Workout Log',text:'Backup completo Workout Log',files:[file]};
+    if(typeof navigator.canShare==='function'&&!navigator.canShare({files:[file]}))throw new Error('file-share-unavailable');
+    await navigator.share(shareData);
+    await markBackup();showMessage('backupMessage','Backup JSON condiviso.');
+  }catch(error){
+    if(error?.name==='AbortError'){showMessage('backupMessage','Condivisione annullata.');return}
+    downloadBlob(blob,name);await markBackup();showMessage('backupMessage','La condivisione file non è disponibile: il JSON è stato scaricato.');
+  }
+}
 function csvEscape(v){const s=String(v??"");return /[;"\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
 function buildCsv(){const rows=[["Data","Work Day","Esercizio ID","Esercizio","Serie","Ripetizioni","Peso kg","Volume","RIR","Note esercizio","Note sessione"]];workouts.forEach(w=>(w.exercises||[]).forEach(e=>(e.sets||[]).forEach((s,i)=>rows.push([w.date,w.workDay,e.exerciseId,e.nameSnapshot||exercises.find(x=>x.id===e.exerciseId)?.name||"",i+1,s.reps,s.weight,round(num(s.reps)*num(s.weight)),s.rir??"",e.notes||"",w.notes||""]))));return '\ufeff'+rows.map(r=>r.map(csvEscape).join(';')).join('\r\n')}
 async function exportCsv(){downloadBlob(new Blob([buildCsv()],{type:"text/csv;charset=utf-8"}),`workout-log-${localISODate()}.csv`);await markBackup();showMessage("backupMessage","CSV esportato.")}
@@ -309,6 +353,8 @@ function bindEvents(){
   $('confirmWord').oninput=e=>$('confirmActionBtn').disabled=e.target.value.trim().toUpperCase()!=='CANCELLA';$('confirmDialog').addEventListener('close',async()=>{if($('confirmDialog').returnValue==='confirm'&&pendingConfirmAction)await pendingConfirmAction();pendingConfirmAction=null});
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;$('installBtn').classList.remove('hidden')});$('installBtn').onclick=async()=>{if(!deferredInstallPrompt)return;deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;$('installBtn').classList.add('hidden')};
   const updateOnline=()=>{$('connectionBadge').textContent=navigator.onLine?'Offline pronta':'Modalità offline';$('footerStatus').textContent=navigator.onLine?'Connessa · dati locali':'Offline · dati locali'};window.addEventListener('online',updateOnline);window.addEventListener('offline',updateOnline);updateOnline();
+  document.addEventListener('visibilitychange',handleVisibilityChange);
+  document.addEventListener('pointerdown',()=>{prepareAudio();requestWakeLock()},{once:true});
 }
-async function init(){try{buildWdControls();bindEvents();$('workoutDate').value=localISODate();db=await openDb();await reloadData();renderConfiguration();refreshWdSelect();refreshAnalysis();refreshBackupStatus();if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){console.error(e);showMessage('trackingMessage','Impossibile inizializzare il database locale.',true)}}
+async function init(){try{buildWdControls();bindEvents();$('workoutDate').value=localISODate();db=await openDb();await reloadData();renderConfiguration();refreshWdSelect();refreshAnalysis();refreshBackupStatus();updateWakeLockStatus();requestWakeLock();if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){console.error(e);showMessage('trackingMessage','Impossibile inizializzare il database locale.',true)}}
 init();

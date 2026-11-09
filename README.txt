@@ -1,4 +1,4 @@
-WORKOUT LOG — PWA v1.1
+WORKOUT LOG — PWA v1.2
 ======================
 
 FUNZIONI
@@ -45,3 +45,14 @@ NOVITÀ VERSIONE 1.1
 - Salvataggio automatico dell’ordine al rilascio.
 - Pulsanti su/giù come alternativa accessibile al drag-and-drop.
 - Compatibilità completa con database e backup della versione 1.0.
+
+
+NOVITÀ VERSIONE 1.2
+- Volume totale del Work Day aggiornato in tempo reale e mostrato al salvataggio.
+- Richiesta di mantenimento dello schermo acceso durante l’uso, sui browser compatibili.
+- Timer con segnale acustico, vibrazione e indicazione visiva alla scadenza.
+- Condivisione JSON più robusta su smartphone, con messaggio e download automatico di riserva.
+- Compatibilità completa con database e backup delle versioni 1.0 e 1.1.
+
+NOTA DISPLAY E AUDIO
+Il mantenimento dello schermo acceso dipende dal supporto e dalle autorizzazioni del browser. Il suono del timer viene inizializzato dopo un’interazione dell’utente, come richiesto dai browser mobili.

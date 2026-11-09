@@ -44,7 +44,12 @@
     </div>
     <p id="workDayHint" class="hint">Vengono mostrati solo i Work Day con almeno un esercizio attivo.</p>
     <div id="workoutExercises" class="workout-list"></div>
+    <div id="workoutSummary" class="workout-summary hidden" aria-live="polite">
+      <div><span>Volume totale del Work Day</span><strong id="workoutTotalVolume">0 kg</strong></div>
+      <div><span>Serie compilate</span><strong id="workoutTotalSets">0</strong></div>
+    </div>
     <label class="field session-notes"><span>Note della sessione</span><textarea id="workoutNotes" rows="3" maxlength="800" placeholder="Sensazioni, tecnica, eventuali limitazioni..."></textarea></label>
+    <div class="screen-status-row"><span id="wakeLockStatus" class="badge">Schermo attivo: in attesa</span></div>
     <div class="actions sticky-actions">
       <button id="saveWorkoutBtn" class="button primary" type="button">Salva allenamento</button>
       <button id="deleteWorkoutBtn" class="button danger ghost hidden" type="button">Elimina allenamento</button>
@@ -120,7 +125,7 @@
   </section>
 </main>
 
-<footer><span>Workout Log v1.1</span><span id="footerStatus">Database locale</span></footer>
+<footer><span>Workout Log v1.2</span><span id="footerStatus">Database locale</span></footer>
 
 <dialog id="confirmDialog"><form method="dialog" class="dialog-card"><h2 id="confirmTitle">Conferma</h2><p id="confirmText"></p><label id="confirmWordField" class="field hidden"><span>Scrivi CANCELLA</span><input id="confirmWord" autocomplete="off"></label><div class="actions"><button class="button secondary" value="cancel">Annulla</button><button id="confirmActionBtn" class="button danger" value="confirm">Conferma</button></div></form></dialog>
 
