@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.6.0";
 const DB_NAME = "workout-log-db";
 const DB_VERSION = 1;
 const WD_MAX = 12;
@@ -327,10 +327,50 @@ function updateWakeLockStatus(failed=false){$('wakeLockStatus').textContent=wake
 async function handleVisibilityChange(){if(document.visibilityState==='visible')await requestWakeLock()}
 
 function filteredWorkouts(){const p=$("analysisPeriod").value;if(p==="all")return workouts;const cutoff=new Date();cutoff.setDate(cutoff.getDate()-Number(p));return workouts.filter(w=>parseDate(w.date)>=cutoff)}
-function exerciseSessions(exerciseId, source=filteredWorkouts()){return source.map(w=>{const entry=(w.exercises||[]).find(e=>e.exerciseId===exerciseId);if(!entry)return null;const sets=entry.sets||[];const valid=sets.filter(s=>s.reps>0||s.weight>0);const best=[...valid].sort((a,b)=>num(b.weight)-num(a.weight)||num(b.reps)-num(a.reps))[0];return {date:w.date,workDay:w.workDay,sets:valid,best,volume:round(valid.reduce((sum,s)=>sum+num(s.weight)*num(s.reps),0))}}).filter(Boolean)}
-function statsForExercise(exerciseId){const sessions=exerciseSessions(exerciseId);const sets=sessions.flatMap(s=>s.sets);if(!sets.length)return null;const maxWeight=Math.max(...sets.map(s=>num(s.weight)));const maxReps=Math.max(...sets.map(s=>num(s.reps)));const maxSessionVolume=Math.max(...sessions.map(s=>s.volume));const bestAtMax=[...sets.filter(s=>num(s.weight)===maxWeight)].sort((a,b)=>num(b.reps)-num(a.reps))[0];const bestEpley=Math.max(...sets.map(s=>num(s.weight)*(1+num(s.reps)/30)));return {sessions,sets,maxWeight,maxReps,maxSessionVolume,bestAtMax,totalVolume:round(sessions.reduce((a,s)=>a+s.volume,0)),estimated1RM:round(bestEpley,1),last:sessions.at(-1)?.date}}
-function refreshAnalysis(){const ids=new Set(filteredWorkouts().flatMap(w=>(w.exercises||[]).map(e=>e.exerciseId)));const rows=[...ids].map(id=>({exercise:exercises.find(e=>e.id===id),id,stats:statsForExercise(id)})).filter(x=>x.stats).sort((a,b)=>(a.exercise?.name||"").localeCompare(b.exercise?.name||"","it"));$("analysisEmpty").classList.toggle("hidden",rows.length>0);$("analysisContent").classList.toggle("hidden",!rows.length);$("analysisTableBody").innerHTML=rows.map(x=>`<tr><td><button class="analysis-link" data-detail="${x.id}">${esc(x.exercise?.name||x.stats.sessions[0]?.nameSnapshot||"Esercizio")}</button>${x.exercise?.archived?' <span class="chip">archiviato</span>':""}</td><td>${formatKg(x.stats.maxWeight)} × ${x.stats.bestAtMax?.reps||0}</td><td>${x.stats.maxReps}</td><td>${formatKg(x.stats.maxSessionVolume)}</td><td>${x.stats.sessions.length}</td><td>${x.stats.last?dateFmt.format(parseDate(x.stats.last)):"—"}</td></tr>`).join("");document.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>showExerciseDetail(b.dataset.detail));if(selectedDetailExerciseId&&rows.some(r=>r.id===selectedDetailExerciseId))showExerciseDetail(selectedDetailExerciseId,false);else $("exerciseDetail").classList.add("hidden")}
-function showExerciseDetail(id,scroll=true){selectedDetailExerciseId=id;const ex=exercises.find(e=>e.id===id);const st=statsForExercise(id);if(!st)return;$("exerciseDetail").classList.remove("hidden");$("detailTitle").textContent=ex?.name||"Esercizio";const last=st.sessions.at(-1),prev=st.sessions.at(-2);const delta=last&&prev?round(last.volume-prev.volume):null;$("detailKpis").innerHTML=[['Massimo peso',formatKg(st.maxWeight)],['Massime ripetizioni',st.maxReps],['1RM stimato',formatKg(st.estimated1RM)],['Volume totale',formatKg(st.totalVolume)],['Δ ultima sessione',delta===null?'—':`${delta>=0?'+':''}${formatKg(delta)}`]].map(([l,v])=>`<div class="kpi"><span>${l}</span><strong>${v}</strong></div>`).join("");$("detailHistoryBody").innerHTML=[...st.sessions].reverse().map(s=>`<tr><td>${dateFmt.format(parseDate(s.date))}</td><td>${s.workDay}</td><td>${s.sets.length}</td><td>${s.best?`${formatKg(s.best.weight)} × ${s.best.reps}`:'—'}</td><td>${formatKg(s.volume)}</td></tr>`).join("");drawLineChart($("progressChart"),st.sessions.map(s=>({date:s.date,value:num(s.best?.weight),secondary:num(s.best?.reps)})),{label:'kg',secondaryLabel:'reps',color:'#26705d',secondaryColor:'#e1a943'});drawLineChart($("volumeChart"),st.sessions.map(s=>({date:s.date,value:s.volume})),{label:'kg',color:'#173e33'});if(scroll)$("exerciseDetail").scrollIntoView({behavior:"smooth",block:"start"})}
+function exerciseSessions(exerciseId, source=filteredWorkouts()){
+  return source.map(w=>{
+    const entry=(w.exercises||[]).find(e=>e.exerciseId===exerciseId);if(!entry)return null;
+    const sets=(entry.sets||[]).filter(s=>num(s.reps)>0||num(s.weight)>0);
+    const bestWeight=[...sets].sort((a,b)=>num(b.weight)-num(a.weight)||num(b.reps)-num(a.reps))[0];
+    const bestSetVolume=[...sets].map(set=>({set,volume:round(num(set.weight)*num(set.reps))})).sort((a,b)=>b.volume-a.volume||num(b.set.weight)-num(a.set.weight))[0]||null;
+    return {date:w.date,workDay:w.workDay,nameSnapshot:entry.nameSnapshot||"",sets,bestWeight,bestSetVolume,volume:round(sets.reduce((sum,set)=>sum+num(set.weight)*num(set.reps),0))};
+  }).filter(Boolean)
+}
+function latestRecord(items,valueOf){
+  return items.reduce((best,item)=>!best||valueOf(item)>valueOf(best)||(valueOf(item)===valueOf(best)&&item.date>best.date)?item:best,null)
+}
+function statsForExercise(exerciseId){
+  const sessions=exerciseSessions(exerciseId);if(!sessions.length)return null;
+  const weightedSets=sessions.flatMap(session=>session.sets.map(set=>({date:session.date,set,volume:round(num(set.weight)*num(set.reps))})));
+  if(!weightedSets.length)return null;
+  const maxWeightRecord=latestRecord(weightedSets,item=>num(item.set.weight));
+  const maxSetVolumeRecord=latestRecord(weightedSets,item=>item.volume);
+  const bestEpley=Math.max(...weightedSets.map(item=>num(item.set.weight)*(1+num(item.set.reps)/30)));
+  return {sessions,maxWeightRecord,maxSetVolumeRecord,totalVolume:round(sessions.reduce((sum,session)=>sum+session.volume,0)),estimated1RM:round(bestEpley,1),last:sessions.at(-1)?.date}
+}
+function refreshAnalysis(){
+  const ids=new Set(filteredWorkouts().flatMap(w=>(w.exercises||[]).map(e=>e.exerciseId)));
+  const rows=[...ids].map(id=>({exercise:exercises.find(e=>e.id===id),id,stats:statsForExercise(id)})).filter(x=>x.stats).sort((a,b)=>(a.exercise?.name||"").localeCompare(b.exercise?.name||"","it"));
+  $("analysisEmpty").classList.toggle("hidden",rows.length>0);$("analysisContent").classList.toggle("hidden",!rows.length);
+  $("analysisTableBody").innerHTML=rows.map(x=>`<tr><td><button class="analysis-link" data-detail="${x.id}">${esc(x.exercise?.name||x.stats.sessions[0]?.nameSnapshot||"Esercizio")}</button>${x.exercise?.archived?' <span class="chip">archiviato</span>':""}</td><td>${formatKg(x.stats.maxWeightRecord.set.weight)} <span class="record-date">(${dateFmt.format(parseDate(x.stats.maxWeightRecord.date))})</span></td><td>${formatKg(x.stats.maxSetVolumeRecord.volume)} <span class="record-date">(${dateFmt.format(parseDate(x.stats.maxSetVolumeRecord.date))})</span></td><td>${x.stats.sessions.length}</td><td>${x.stats.last?dateFmt.format(parseDate(x.stats.last)):"—"}</td></tr>`).join("");
+  document.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>showExerciseDetail(b.dataset.detail));
+  if(selectedDetailExerciseId&&rows.some(r=>r.id===selectedDetailExerciseId))showExerciseDetail(selectedDetailExerciseId,false);else $("exerciseDetail").classList.add("hidden")
+}
+function showExerciseDetail(id,scroll=true){
+  selectedDetailExerciseId=id;const ex=exercises.find(e=>e.id===id);const st=statsForExercise(id);if(!st)return;
+  $("exerciseDetail").classList.remove("hidden");$("detailTitle").textContent=ex?.name||"Esercizio";
+  $("detailKpis").innerHTML=[
+    ['Massimo peso',`${formatKg(st.maxWeightRecord.set.weight)}<small>(${dateFmt.format(parseDate(st.maxWeightRecord.date))})</small>`],
+    ['Max volume singola serie',`${formatKg(st.maxSetVolumeRecord.volume)}<small>(${dateFmt.format(parseDate(st.maxSetVolumeRecord.date))})</small>`],
+    ['Volume totale storico',formatKg(st.totalVolume)],
+    ['Ultima sessione',st.last?dateFmt.format(parseDate(st.last)):'—']
+  ].map(([label,value])=>`<div class="kpi"><span>${label}</span><strong>${value}</strong></div>`).join("");
+  $("detailHistoryBody").innerHTML=[...st.sessions].reverse().map(session=>`<tr><td>${dateFmt.format(parseDate(session.date))}</td><td>${session.workDay}</td><td>${session.sets.length}</td><td>${session.bestWeight?`${formatKg(session.bestWeight.weight)} × ${session.bestWeight.reps}`:'—'}</td><td>${session.bestSetVolume?formatKg(session.bestSetVolume.volume):'—'}</td><td>${formatKg(session.volume)}</td></tr>`).join("");
+  drawLineChart($("progressChart"),st.sessions.map(session=>({date:session.date,value:num(session.bestWeight?.weight)})),{label:'kg',color:'#26705d'});
+  drawLineChart($("setVolumeChart"),st.sessions.map(session=>({date:session.date,value:num(session.bestSetVolume?.volume)})),{label:'kg',color:'#e1a943'});
+  drawLineChart($("volumeChart"),st.sessions.map(session=>({date:session.date,value:session.volume})),{label:'kg',color:'#173e33'});
+  if(scroll)$("exerciseDetail").scrollIntoView({behavior:"smooth",block:"start"})
+}
 function drawLineChart(canvas,points,options){const ctx=canvas.getContext("2d"),dpr=window.devicePixelRatio||1,w=canvas.clientWidth||450,h=300;canvas.width=w*dpr;canvas.height=h*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);if(!points.length)return;const pad={l:48,r:22,t:24,b:45};const values=points.flatMap(p=>p.secondary!==undefined?[p.value,p.secondary]:[p.value]);let min=Math.min(0,...values),max=Math.max(...values);if(max===min)max=min+1;ctx.strokeStyle="#d8ddd6";ctx.lineWidth=1;ctx.fillStyle="#64716c";ctx.font="11px system-ui";for(let i=0;i<=4;i++){const y=pad.t+(h-pad.t-pad.b)*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();const val=max-(max-min)*i/4;ctx.fillText(round(val,1),4,y+4)}const x=i=>pad.l+(points.length===1?(w-pad.l-pad.r)/2:(w-pad.l-pad.r)*i/(points.length-1));const y=v=>pad.t+(max-v)*(h-pad.t-pad.b)/(max-min);function line(key,color){ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=3;ctx.beginPath();points.forEach((p,i)=>{const xx=x(i),yy=y(p[key]);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.stroke();points.forEach((p,i)=>{ctx.beginPath();ctx.arc(x(i),y(p[key]),4,0,Math.PI*2);ctx.fill()})}line('value',options.color);if(points.some(p=>p.secondary!==undefined))line('secondary',options.secondaryColor);const step=Math.max(1,Math.ceil(points.length/6));points.forEach((p,i)=>{if(i%step===0||i===points.length-1){ctx.save();ctx.translate(x(i),h-12);ctx.rotate(-.35);ctx.fillStyle="#64716c";ctx.fillText(shortFmt.format(parseDate(p.date)),0,0);ctx.restore()}})}
 
 function exportPayload(){return {app:"Workout Log",version:APP_VERSION,exportedAt:new Date().toISOString(),exercises,workouts,settings:{lastBackupAt:new Date().toISOString()}}}

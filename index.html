@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=1.5.0">
+  <link rel="stylesheet" href="styles.css?v=1.6.0">
 </head>
 <body>
 <header class="topbar">
@@ -103,15 +103,16 @@
     </div>
     <div id="analysisEmpty" class="empty-state">Registra almeno un allenamento per visualizzare le analisi.</div>
     <div id="analysisContent" class="hidden">
-      <div class="table-card"><div class="table-wrap"><table><thead><tr><th>Esercizio</th><th>Max kg</th><th>Max reps</th><th>Max volume sessione</th><th>Sessioni</th><th>Ultima</th></tr></thead><tbody id="analysisTableBody"></tbody></table></div></div>
+      <div class="table-card"><div class="table-wrap"><table><thead><tr><th>Esercizio</th><th>Max kg</th><th>Max volume singola serie</th><th>Sessioni</th><th>Ultima</th></tr></thead><tbody id="analysisTableBody"></tbody></table></div></div>
       <article id="exerciseDetail" class="detail-card hidden">
         <div class="detail-heading"><div><p class="eyebrow">Dettaglio</p><h3 id="detailTitle"></h3></div><button id="closeDetailBtn" class="icon-button" type="button">×</button></div>
         <div id="detailKpis" class="kpi-grid"></div>
-        <div class="chart-grid">
-          <div class="chart-card"><h4>Progressione: miglior serie per sessione</h4><canvas id="progressChart" width="900" height="360"></canvas><p id="progressEmpty" class="empty-chart hidden">Dati insufficienti.</p></div>
-          <div class="chart-card"><h4>Volume storico per sessione</h4><canvas id="volumeChart" width="900" height="360"></canvas><p id="volumeEmpty" class="empty-chart hidden">Dati insufficienti.</p></div>
+        <div class="chart-grid analysis-chart-grid">
+          <div class="chart-card"><h4>Progressione del peso massimo</h4><p class="chart-description">Miglior peso registrato in ogni sessione.</p><canvas id="progressChart" width="900" height="360"></canvas><p id="progressEmpty" class="empty-chart hidden">Dati insufficienti.</p></div>
+          <div class="chart-card"><h4>Progressione del max volume su singola serie</h4><p class="chart-description">Massimo peso × ripetizioni ottenuto in una singola serie per sessione.</p><canvas id="setVolumeChart" width="900" height="360"></canvas><p id="setVolumeEmpty" class="empty-chart hidden">Dati insufficienti.</p></div>
+          <div class="chart-card chart-wide"><h4>Volume totale per sessione</h4><p class="chart-description">Somma dei volumi di tutte le serie della sessione.</p><canvas id="volumeChart" width="900" height="360"></canvas><p id="volumeEmpty" class="empty-chart hidden">Dati insufficienti.</p></div>
         </div>
-        <div class="table-card"><h4>Storico dell’esercizio</h4><div class="table-wrap"><table><thead><tr><th>Data</th><th>WD</th><th>Serie</th><th>Miglior peso × reps</th><th>Volume</th></tr></thead><tbody id="detailHistoryBody"></tbody></table></div></div>
+        <div class="table-card"><h4>Storico dell’esercizio</h4><div class="table-wrap"><table><thead><tr><th>Data</th><th>WD</th><th>Serie</th><th>Miglior peso × reps</th><th>Max volume serie</th><th>Volume sessione</th></tr></thead><tbody id="detailHistoryBody"></tbody></table></div></div>
       </article>
     </div>
   </section>
@@ -130,10 +131,10 @@
   </section>
 </main>
 
-<footer><span>Workout Log v1.5</span><span id="footerStatus">Database locale</span></footer>
+<footer><span>Workout Log v1.6</span><span id="footerStatus">Database locale</span></footer>
 
 <dialog id="confirmDialog"><form method="dialog" class="dialog-card"><h2 id="confirmTitle">Conferma</h2><p id="confirmText"></p><label id="confirmWordField" class="field hidden"><span>Scrivi CANCELLA</span><input id="confirmWord" autocomplete="off"></label><div class="actions"><button class="button secondary" value="cancel">Annulla</button><button id="confirmActionBtn" class="button danger" value="confirm">Conferma</button></div></form></dialog>
 
-<script src="app.js?v=1.5.0"></script>
+<script src="app.js?v=1.6.0"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-WORKOUT LOG — PWA v1.5
+WORKOUT LOG — PWA v1.6
 ======================
 
 FUNZIONI
@@ -89,3 +89,13 @@ NOVITÀ v1.5
 - Il comando Installa app è integrato nel menu quando disponibile.
 - Su smartphone il badge di connessione è nascosto per lasciare spazio al menu.
 - Funzioni, database, condivisione JSON e aggiornamento offline restano invariati.
+
+NOVITÀ v1.6
+- Analisi: eliminata la metrica Max reps dalla tabella e dal dettaglio.
+- Max kg mostra la data più recente in cui è stato raggiunto il record.
+- Max volume singola serie è calcolato serie per serie come peso × ripetizioni e mostra la data del record.
+- Il grafico del peso massimo non sovrappone più le ripetizioni.
+- Aggiunto il grafico del massimo volume ottenuto in una singola serie per sessione.
+- Mantenuto separatamente il grafico del volume totale della sessione.
+- Storico esercizio ampliato con max volume serie e volume sessione.
+- Database locale invariato e compatibile con le versioni precedenti.
