@@ -1,4 +1,4 @@
-WORKOUT LOG — PWA v1.3.1
+WORKOUT LOG — PWA v1.5
 ======================
 
 FUNZIONI
@@ -72,3 +72,20 @@ CORREZIONE v1.3.1
 - Il payload di condivisione contiene solo il file, per maggiore compatibilità mobile.
 - Il pulsante Condividi JSON non avvia più automaticamente il download.
 - Se la condivisione nativa non è supportata, viene indicato di usare Esporta JSON.
+
+AGGIORNAMENTO v1.4
+- Aggiornamento offline rafforzato con download forzato dei file applicativi.
+- Il nuovo service worker si attiva subito e prende il controllo delle finestre aperte.
+- Le vecchie cache vengono eliminate durante l'attivazione.
+- La pagina principale usa la rete come priorità e la cache solo quando offline.
+- CSS e JavaScript hanno identificativi di versione per evitare copie precedenti.
+- La registrazione del service worker ignora la cache HTTP e controlla subito gli aggiornamenti.
+- Database locale invariato e compatibile con tutte le versioni precedenti.
+
+NOVITÀ v1.5
+- La barra orizzontale delle schede è stata sostituita da un menu hamburger in alto a destra.
+- Le sezioni sono mostrate in un elenco verticale con evidenza della sezione attiva.
+- Il menu si chiude dopo la selezione, toccando lo sfondo oppure premendo Esc.
+- Il comando Installa app è integrato nel menu quando disponibile.
+- Su smartphone il badge di connessione è nascosto per lasciare spazio al menu.
+- Funzioni, database, condivisione JSON e aggiornamento offline restano invariati.

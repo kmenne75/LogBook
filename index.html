@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=1.5.0">
 </head>
 <body>
 <header class="topbar">
@@ -19,19 +19,23 @@
     <p class="eyebrow">Daily workout log</p>
     <h1>Workout Log</h1>
   </div>
-  <div class="header-actions">
+  <div class="nav-menu-wrap">
     <span id="connectionBadge" class="badge">Offline pronta</span>
-    <button id="installBtn" class="button secondary hidden" type="button">Installa</button>
+    <button id="menuToggleBtn" class="menu-toggle" type="button" aria-label="Apri menu" aria-controls="mainMenu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <nav id="mainMenu" class="tabs menu-panel" aria-label="Sezioni" hidden>
+      <button class="tab active" data-panel="tracking" type="button"><span>Tracciatura</span></button>
+      <button class="tab" data-panel="configuration" type="button"><span>Configurazione</span></button>
+      <button class="tab" data-panel="analysis" type="button"><span>Analisi</span></button>
+      <button class="tab" data-panel="backup" type="button"><span>Backup e restore</span></button>
+      <button id="installBtn" class="tab install-menu-item hidden" type="button"><span>Installa app</span></button>
+    </nav>
   </div>
 </header>
+<div id="menuBackdrop" class="menu-backdrop" hidden></div>
 
 <main class="shell">
-  <nav class="tabs" aria-label="Sezioni">
-    <button class="tab active" data-panel="tracking" type="button">Tracciatura</button>
-    <button class="tab" data-panel="configuration" type="button">Configurazione</button>
-    <button class="tab" data-panel="analysis" type="button">Analisi</button>
-    <button class="tab" data-panel="backup" type="button">Backup e restore</button>
-  </nav>
 
   <section id="tracking" class="panel active">
     <div class="section-heading">
@@ -126,10 +130,10 @@
   </section>
 </main>
 
-<footer><span>Workout Log v1.3.1</span><span id="footerStatus">Database locale</span></footer>
+<footer><span>Workout Log v1.5</span><span id="footerStatus">Database locale</span></footer>
 
 <dialog id="confirmDialog"><form method="dialog" class="dialog-card"><h2 id="confirmTitle">Conferma</h2><p id="confirmText"></p><label id="confirmWordField" class="field hidden"><span>Scrivi CANCELLA</span><input id="confirmWord" autocomplete="off"></label><div class="actions"><button class="button secondary" value="cancel">Annulla</button><button id="confirmActionBtn" class="button danger" value="confirm">Conferma</button></div></form></dialog>
 
-<script src="app.js"></script>
+<script src="app.js?v=1.5.0"></script>
 </body>
 </html>

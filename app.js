@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.3.1";
+const APP_VERSION = "1.5.0";
 const DB_NAME = "workout-log-db";
 const DB_VERSION = 1;
 const WD_MAX = 12;
@@ -65,9 +65,17 @@ function showMessage(id, text, error = false) {
   const el = $(id); el.textContent = text; el.classList.toggle("error", error);
   if (text) setTimeout(() => { if (el.textContent === text) el.textContent = ""; }, 6000);
 }
+function setMenuOpen(open) {
+  const menu=$("mainMenu"),toggle=$("menuToggleBtn"),backdrop=$("menuBackdrop");
+  menu.hidden=!open;backdrop.hidden=!open;toggle.setAttribute("aria-expanded",String(open));
+  toggle.setAttribute("aria-label",open?"Chiudi menu":"Apri menu");
+  document.body.classList.toggle("menu-open",open);
+  if(open)menu.querySelector(".tab.active")?.focus();
+}
 function switchPanel(id) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.panel === id));
+  document.querySelectorAll(".tab[data-panel]").forEach(t => t.classList.toggle("active", t.dataset.panel === id));
   document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === id));
+  setMenuOpen(false);
   if (id === "analysis") refreshAnalysis();
   if (id === "backup") refreshBackupStatus();
 }
@@ -375,7 +383,7 @@ async function deleteAllData(){await Promise.all([clear('exercises'),clear('work
 function openConfirm(title,text,action,requireWord=false){pendingConfirmAction=action;$('confirmTitle').textContent=title;$('confirmText').textContent=text;$('confirmWordField').classList.toggle('hidden',!requireWord);$('confirmWord').value='';$('confirmActionBtn').disabled=requireWord;$('confirmDialog').showModal()}
 
 function bindEvents(){
-  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchPanel(t.dataset.panel));
+  document.querySelectorAll('.tab[data-panel]').forEach(t=>t.onclick=()=>switchPanel(t.dataset.panel));$('menuToggleBtn').onclick=()=>setMenuOpen($('mainMenu').hidden);$('menuBackdrop').onclick=()=>setMenuOpen(false);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('mainMenu').hidden){setMenuOpen(false);$('menuToggleBtn').focus()}});
   $('newExerciseBtn').onclick=()=>openExerciseForm();$('closeExerciseFormBtn').onclick=closeExerciseForm;$('cancelExerciseBtn').onclick=closeExerciseForm;$('exerciseForm').onsubmit=saveExercise;
   $('toggleArchiveBtn').onclick=()=>{const hidden=$('archivedSection').classList.toggle('hidden');$('toggleArchiveBtn').textContent=hidden?'Mostra esercizi archiviati':'Nascondi esercizi archiviati'};
   $('workoutDate').onchange=()=>refreshWdSelect();$('workDaySelect').onchange=()=>{const wd=$('workDaySelect').value;if(wd)loadWorkoutForm($('workoutDate').value,wd);else renderWorkoutExercises([])};$('saveWorkoutBtn').onclick=saveWorkout;$('stickyTimerBtn').onclick=()=>{const card=$('workoutExercises').querySelector('.workout-exercise.timer-active')||$('workoutExercises').querySelector('.workout-exercise');if(card)startTimer(num(card.dataset.restSeconds),card.dataset.name)};$('deleteWorkoutBtn').onclick=()=>openConfirm('Eliminare l’allenamento?',`Verrà eliminata la sessione del ${dateFmt.format(parseDate($('workoutDate').value))}. Per confermare scrivi CANCELLA.`,deleteCurrentWorkout,true);
@@ -387,5 +395,27 @@ function bindEvents(){
   document.addEventListener('visibilitychange',handleVisibilityChange);
   document.addEventListener('pointerdown',()=>{prepareAudio();requestWakeLock()},{once:true});
 }
-async function init(){try{buildWdControls();bindEvents();$('workoutDate').value=localISODate();db=await openDb();await reloadData();renderConfiguration();refreshWdSelect();refreshAnalysis();refreshBackupStatus();updateWakeLockStatus();requestWakeLock();if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){console.error(e);showMessage('trackingMessage','Impossibile inizializzare il database locale.',true)}}
+async function registerServiceWorker(){
+  if(!('serviceWorker'in navigator))return;
+  const hadController=!!navigator.serviceWorker.controller;
+  let reloading=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(!hadController||reloading)return;
+    reloading=true;
+    window.location.reload();
+  });
+  try{
+    const registration=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
+    if(registration.waiting)registration.waiting.postMessage({type:'SKIP_WAITING'});
+    registration.addEventListener('updatefound',()=>{
+      const worker=registration.installing;
+      if(!worker)return;
+      worker.addEventListener('statechange',()=>{
+        if(worker.state==='installed'&&navigator.serviceWorker.controller)worker.postMessage({type:'SKIP_WAITING'});
+      });
+    });
+    await registration.update();
+  }catch(error){console.warn('Aggiornamento offline non disponibile.',error)}
+}
+async function init(){try{buildWdControls();bindEvents();$('workoutDate').value=localISODate();db=await openDb();await reloadData();renderConfiguration();refreshWdSelect();refreshAnalysis();refreshBackupStatus();updateWakeLockStatus();requestWakeLock();registerServiceWorker()}catch(e){console.error(e);showMessage('trackingMessage','Impossibile inizializzare il database locale.',true)}}
 init();
