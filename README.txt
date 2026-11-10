@@ -1,4 +1,4 @@
-WORKOUT LOG — PWA v1.3
+WORKOUT LOG — PWA v1.3.1
 ======================
 
 FUNZIONI
@@ -66,3 +66,9 @@ NOVITÀ v1.3
 - L’esercizio attivo cambia toccando o compilando la relativa scheda.
 - Eliminazione allenamento protetta dalla digitazione obbligatoria di CANCELLA.
 - Database invariato e compatibile con i dati delle versioni precedenti.
+
+CORREZIONE v1.3.1
+- Condividi JSON prova sia application/json sia text/plain mantenendo l'estensione .json.
+- Il payload di condivisione contiene solo il file, per maggiore compatibilità mobile.
+- Il pulsante Condividi JSON non avvia più automaticamente il download.
+- Se la condivisione nativa non è supportata, viene indicato di usare Esporta JSON.

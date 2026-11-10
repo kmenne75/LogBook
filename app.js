@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.3.1";
 const DB_NAME = "workout-log-db";
 const DB_VERSION = 1;
 const WD_MAX = 12;
@@ -331,17 +331,31 @@ async function markBackup(){await setSetting("lastBackupAt",new Date().toISOStri
 async function exportJson(){downloadBlob(new Blob([JSON.stringify(exportPayload(),null,2)],{type:"application/json"}),`workout-log-backup-${localISODate()}.json`);await markBackup();showMessage("backupMessage","Backup JSON esportato.")}
 async function shareJson(){
   const name=`workout-log-backup-${localISODate()}.json`;
-  const blob=new Blob([JSON.stringify(exportPayload(),null,2)],{type:'application/json'});
+  const content=JSON.stringify(exportPayload(),null,2);
+  if(typeof navigator.share!=='function'){
+    showMessage('backupMessage','La condivisione nativa non è disponibile in questo browser. Usa Esporta JSON.',true);
+    return;
+  }
+  const candidates=[
+    new File([content],name,{type:'application/json'}),
+    new File([content],name,{type:'text/plain'})
+  ];
+  const canCheck=typeof navigator.canShare==='function';
+  const file=candidates.find(candidate=>!canCheck||navigator.canShare({files:[candidate]}));
+  if(!file){
+    showMessage('backupMessage','Il dispositivo non consente la condivisione di file JSON. Usa Esporta JSON.',true);
+    return;
+  }
   try{
-    if(typeof navigator.share!=='function')throw new Error('share-unavailable');
-    const file=new File([blob],name,{type:'application/json'});
-    const shareData={title:'Backup Workout Log',text:'Backup completo Workout Log',files:[file]};
-    if(typeof navigator.canShare==='function'&&!navigator.canShare({files:[file]}))throw new Error('file-share-unavailable');
-    await navigator.share(shareData);
-    await markBackup();showMessage('backupMessage','Backup JSON condiviso.');
+    await navigator.share({title:'Backup Workout Log',files:[file]});
+    await markBackup();
+    showMessage('backupMessage','Backup JSON condiviso.');
   }catch(error){
-    if(error?.name==='AbortError'){showMessage('backupMessage','Condivisione annullata.');return}
-    downloadBlob(blob,name);await markBackup();showMessage('backupMessage','La condivisione file non è disponibile: il JSON è stato scaricato.');
+    if(error?.name==='AbortError'){
+      showMessage('backupMessage','Condivisione annullata.');
+      return;
+    }
+    showMessage('backupMessage','Non è stato possibile aprire la condivisione. Usa Esporta JSON.',true);
   }
 }
 function csvEscape(v){const s=String(v??"");return /[;"\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
