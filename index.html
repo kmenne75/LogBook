@@ -42,17 +42,18 @@
       <label class="field"><span>Data</span><input id="workoutDate" type="date"></label>
       <label class="field"><span>Work Day</span><select id="workDaySelect"><option value="">Configura prima gli esercizi</option></select></label>
     </div>
-    <p id="workDayHint" class="hint">Vengono mostrati solo i Work Day con almeno un esercizio attivo.</p>
-    <div id="workoutExercises" class="workout-list"></div>
+    <p id="workDayHint" class="hint compact-hint">Vengono mostrati solo i Work Day con almeno un esercizio attivo.</p>
     <div id="workoutSummary" class="workout-summary hidden" aria-live="polite">
-      <div><span>Volume totale del Work Day</span><strong id="workoutTotalVolume">0 kg</strong></div>
-      <div><span>Serie compilate</span><strong id="workoutTotalSets">0</strong></div>
+      <div><span>Volume Work Day</span><strong id="workoutTotalVolume">0 kg</strong></div>
+      <div><span>Serie</span><strong id="workoutTotalSets">0</strong></div>
     </div>
+    <div id="workoutExercises" class="workout-list"></div>
     <label class="field session-notes"><span>Note della sessione</span><textarea id="workoutNotes" rows="3" maxlength="800" placeholder="Sensazioni, tecnica, eventuali limitazioni..."></textarea></label>
     <div class="screen-status-row"><span id="wakeLockStatus" class="badge">Schermo attivo: in attesa</span></div>
-    <div class="actions sticky-actions">
-      <button id="saveWorkoutBtn" class="button primary" type="button">Salva allenamento</button>
-      <button id="deleteWorkoutBtn" class="button danger ghost hidden" type="button">Elimina allenamento</button>
+    <div class="sticky-actions" aria-label="Azioni allenamento">
+      <button id="deleteWorkoutBtn" class="button danger hidden" type="button" aria-label="Elimina allenamento">Elimina</button>
+      <button id="saveWorkoutBtn" class="button primary" type="button">Salva</button>
+      <button id="stickyTimerBtn" class="button timer-action" type="button" disabled>Timer</button>
     </div>
     <p id="trackingMessage" class="message" role="status"></p>
   </section>
@@ -66,7 +67,7 @@
       <div class="form-title-row"><h3 id="exerciseFormTitle">Nuovo esercizio</h3><button id="closeExerciseFormBtn" class="icon-button" type="button" aria-label="Chiudi">×</button></div>
       <form id="exerciseForm">
         <input id="exerciseId" type="hidden">
-        <div class="form-grid">
+        <div class="form-grid compact-config-grid">
           <label class="field field-wide"><span>Nome esercizio *</span><input id="exerciseName" required maxlength="100" placeholder="Es. Panca piana"></label>
           <label class="field"><span>Gruppo muscolare</span><input id="muscleGroup" maxlength="60" placeholder="Es. Petto"></label>
           <label class="field"><span>Misura attrezzo</span><input id="equipmentMeasure" maxlength="120" placeholder="Es. panca a 30° / altezza 4"></label>
@@ -82,7 +83,7 @@
           <p class="hint">Uno stesso esercizio può appartenere a più Work Day. L’ordine è configurabile separatamente per ogni WD.</p>
           <div id="wdOrders" class="wd-orders"></div>
         </fieldset>
-        <div class="actions"><button class="button primary" type="submit">Salva esercizio</button><button id="cancelExerciseBtn" class="button secondary" type="button">Annulla</button></div>
+        <div class="actions config-form-actions"><button id="cancelExerciseBtn" class="button secondary" type="button">Annulla</button><button class="button primary" type="submit">Salva esercizio</button></div>
       </form>
     </div>
     <div id="activeExercises" class="config-groups"></div>
@@ -125,7 +126,7 @@
   </section>
 </main>
 
-<footer><span>Workout Log v1.2</span><span id="footerStatus">Database locale</span></footer>
+<footer><span>Workout Log v1.3</span><span id="footerStatus">Database locale</span></footer>
 
 <dialog id="confirmDialog"><form method="dialog" class="dialog-card"><h2 id="confirmTitle">Conferma</h2><p id="confirmText"></p><label id="confirmWordField" class="field hidden"><span>Scrivi CANCELLA</span><input id="confirmWord" autocomplete="off"></label><div class="actions"><button class="button secondary" value="cancel">Annulla</button><button id="confirmActionBtn" class="button danger" value="confirm">Conferma</button></div></form></dialog>
 

@@ -1,4 +1,4 @@
-WORKOUT LOG — PWA v1.2
+WORKOUT LOG — PWA v1.3
 ======================
 
 FUNZIONI
@@ -56,3 +56,13 @@ NOVITÀ VERSIONE 1.2
 
 NOTA DISPLAY E AUDIO
 Il mantenimento dello schermo acceso dipende dal supporto e dalle autorizzazioni del browser. Il suono del timer viene inizializzato dopo un’interazione dell’utente, come richiesto dai browser mobili.
+
+
+NOVITÀ v1.3
+- Interfaccia mobile più compatta per tracciatura e configurazione.
+- Campi affiancati e schede esercizio a minore occupazione verticale.
+- Barra azioni persistente con Elimina, Salva e Timer.
+- Il Timer usa sempre i secondi di recupero configurati per l’esercizio attivo.
+- L’esercizio attivo cambia toccando o compilando la relativa scheda.
+- Eliminazione allenamento protetta dalla digitazione obbligatoria di CANCELLA.
+- Database invariato e compatibile con i dati delle versioni precedenti.

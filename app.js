@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 const DB_NAME = "workout-log-db";
 const DB_VERSION = 1;
 const WD_MAX = 12;
@@ -11,6 +11,7 @@ let deferredInstallPrompt = null;
 let pendingConfirmAction = null;
 let timerInterval = null;
 let selectedDetailExerciseId = null;
+let activeTimerExerciseId = null;
 let wakeLock = null;
 let keepScreenAwake = true;
 let audioContext = null;
@@ -244,21 +245,37 @@ function loadWorkoutForm(date,wd) {
     renderWorkoutExercises(exercisesForWd(wd).map(e=>newExerciseEntry(e,date))); $("workoutNotes").value=""; $("deleteWorkoutBtn").classList.add("hidden");
   }
 }
+function updateStickyTimer(card = null) {
+  const cards=[...$("workoutExercises").querySelectorAll(".workout-exercise")];
+  const selected=card||cards.find(c=>c.dataset.exerciseId===activeTimerExerciseId)||cards[0]||null;
+  cards.forEach(c=>c.classList.toggle("timer-active",c===selected));
+  activeTimerExerciseId=selected?.dataset.exerciseId||null;
+  const seconds=num(selected?.dataset.restSeconds);
+  const button=$("stickyTimerBtn");
+  button.disabled=!selected||seconds<=0;
+  button.textContent=selected?`Timer ${seconds}s`:"Timer";
+  button.setAttribute("aria-label",selected?`Avvia timer di ${seconds} secondi per ${selected.dataset.name}`:"Timer non disponibile");
+  button.title=selected?`${selected.dataset.name} · recupero configurato ${seconds}s`:"Seleziona un esercizio";
+}
+function setActiveTimerExercise(card){if(!card)return;activeTimerExerciseId=card.dataset.exerciseId;updateStickyTimer(card)}
 function renderWorkoutExercises(entries) {
   const container=$("workoutExercises");
-  if(!entries.length){container.innerHTML='<div class="empty-state">Seleziona un Work Day per caricare gli esercizi.</div>';$('workoutSummary').classList.add('hidden');updateWorkoutTotal();return;}
+  if(!entries.length){container.innerHTML='<div class="empty-state">Seleziona un Work Day per caricare gli esercizi.</div>';$('workoutSummary').classList.add('hidden');activeTimerExerciseId=null;updateStickyTimer();updateWorkoutTotal();return;}
   $('workoutSummary').classList.remove('hidden');
   container.innerHTML=entries.map(entry=>{
-    const ex=exercises.find(e=>e.id===entry.exerciseId); const title=ex?.name||entry.nameSnapshot||"Esercizio archiviato";
-    return `<article class="workout-exercise" data-exercise-id="${entry.exerciseId}" data-name="${esc(title)}"><header class="exercise-header"><div><h3>${esc(title)}</h3><div class="exercise-subtitle">${ex?.equipmentMeasure?`Misura attrezzo: ${esc(ex.equipmentMeasure)} · `:""}Recupero: ${ex?.restSeconds||0}s${ex?.targetReps?` · Target: ${esc(ex.targetReps)} reps`:""}</div></div><button class="timer-button" data-timer="${ex?.restSeconds||0}" type="button">Timer ${ex?.restSeconds||0}s</button></header><div class="sets">${(entry.sets||[]).map((s,i)=>setRowHtml(s,i)).join("")}</div><footer class="exercise-footer"><button class="add-set" type="button">+ Aggiungi serie</button><span class="volume-label">Volume: <strong class="exercise-volume">0 kg</strong></span></footer><label class="field" style="padding:0 14px 14px"><span>Note esercizio</span><input class="exercise-note" maxlength="300" value="${esc(entry.notes||"")}"></label></article>`;
+    const ex=exercises.find(e=>e.id===entry.exerciseId); const title=ex?.name||entry.nameSnapshot||"Esercizio archiviato"; const rest=num(ex?.restSeconds);
+    return `<article class="workout-exercise" data-exercise-id="${entry.exerciseId}" data-name="${esc(title)}" data-rest-seconds="${rest}"><header class="exercise-header"><div><h3>${esc(title)}</h3><div class="exercise-subtitle">${ex?.equipmentMeasure?`Misura attrezzo: ${esc(ex.equipmentMeasure)} · `:""}Recupero: ${rest}s${ex?.targetReps?` · Obiettivo: ${esc(ex.targetReps)} rip.`:""}</div></div><span class="timer-chip" aria-label="Recupero configurato">${rest}s</span></header><div class="sets">${(entry.sets||[]).map((s,i)=>setRowHtml(s,i)).join("")}</div><footer class="exercise-footer"><button class="add-set" type="button">+ Serie</button><span class="volume-label">Volume: <strong class="exercise-volume">0 kg</strong></span></footer><label class="field exercise-note-field"><span>Note esercizio</span><input class="exercise-note" maxlength="300" placeholder="Aggiungi una nota…" value="${esc(entry.notes||"")}"></label></article>`;
   }).join("");
   container.querySelectorAll(".workout-exercise").forEach((card,index)=>{
     const entry=entries[index]; card.dataset.entry=JSON.stringify(entry);
-    card.querySelector(".add-set").onclick=()=>addSet(card);
-    card.querySelectorAll(".remove-set").forEach(b=>b.onclick=()=>removeSet(b.closest(".set-row")));
+    card.querySelector(".add-set").onclick=()=>{setActiveTimerExercise(card);addSet(card)};
+    card.querySelectorAll(".remove-set").forEach(b=>b.onclick=()=>{setActiveTimerExercise(card);removeSet(b.closest(".set-row"))});
     card.querySelectorAll("input").forEach(i=>i.addEventListener("input",()=>updateCardVolume(card)));
-    card.querySelector(".timer-button").onclick=()=>startTimer(num(card.querySelector(".timer-button").dataset.timer)); updateCardVolume(card);
+    card.addEventListener("focusin",()=>setActiveTimerExercise(card));
+    card.addEventListener("pointerdown",()=>setActiveTimerExercise(card));
+    updateCardVolume(card);
   });
+  updateStickyTimer();
   updateWorkoutTotal();
 }
 function setRowHtml(set,index) { return `<div class="set-row" data-set-id="${set.id||uuid()}"><div class="set-number">${index+1}</div><label><span class="small-label">Ripetizioni</span><input class="set-reps" type="number" min="0" max="1000" inputmode="numeric" value="${esc(set.reps)}"></label><label><span class="small-label">Peso kg</span><input class="set-weight" type="number" min="0" max="2000" step="0.25" inputmode="decimal" value="${esc(set.weight)}"></label><label class="set-rir"><span class="small-label">RIR</span><input class="set-rir-input" type="number" min="0" max="20" value="${esc(set.rir)}"></label><button class="remove-set" type="button" aria-label="Rimuovi serie">×</button></div>`; }
@@ -292,7 +309,7 @@ function playTimerSound(){
     [0,.22,.44].forEach((delay,index)=>{const oscillator=audioContext.createOscillator(),gain=audioContext.createGain();oscillator.type='sine';oscillator.frequency.value=index===2?1046:880;gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(.35,now+delay+.015);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+.17);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(now+delay);oscillator.stop(now+delay+.19)});
   }catch(e){}
 }
-function startTimer(seconds){if(!seconds)return;prepareAudio();requestWakeLock();clearInterval(timerInterval);const overlay=document.createElement("div");overlay.className="timer-overlay";overlay.innerHTML=`<div class="timer-card"><p>Recupero</p><div class="timer-value">${seconds}</div><div class="timer-progress"><span></span></div><button class="button secondary" type="button">Chiudi</button></div>`;document.body.appendChild(overlay);let left=seconds;const bar=overlay.querySelector('.timer-progress span');const close=()=>{clearInterval(timerInterval);overlay.remove()};overlay.querySelector("button").onclick=close;timerInterval=setInterval(()=>{left--;overlay.querySelector(".timer-value").textContent=Math.max(0,left);bar.style.width=`${Math.max(0,left/seconds*100)}%`;if(left<=0){clearInterval(timerInterval);overlay.querySelector(".timer-value").textContent="Via!";overlay.classList.add('timer-finished');playTimerSound();if(navigator.vibrate)navigator.vibrate([250,120,250,120,400])}},1000)}
+function startTimer(seconds,exerciseName=""){if(!seconds)return;prepareAudio();requestWakeLock();clearInterval(timerInterval);document.querySelector(".timer-overlay")?.remove();const overlay=document.createElement("div");overlay.className="timer-overlay";overlay.innerHTML=`<div class="timer-card"><p>Recupero${exerciseName?` · ${esc(exerciseName)}`:""}</p><div class="timer-value">${seconds}</div><div class="timer-progress"><span></span></div><button class="button secondary" type="button">Chiudi</button></div>`;document.body.appendChild(overlay);let left=seconds;const bar=overlay.querySelector('.timer-progress span');const close=()=>{clearInterval(timerInterval);overlay.remove()};overlay.querySelector("button").onclick=close;timerInterval=setInterval(()=>{left--;overlay.querySelector(".timer-value").textContent=Math.max(0,left);bar.style.width=`${Math.max(0,left/seconds*100)}%`;if(left<=0){clearInterval(timerInterval);overlay.querySelector(".timer-value").textContent="Via!";overlay.classList.add('timer-finished');playTimerSound();if(navigator.vibrate)navigator.vibrate([250,120,250,120,400])}},1000)}
 async function requestWakeLock(){
   if(!keepScreenAwake||document.visibilityState!=='visible')return;
   if(!('wakeLock'in navigator)){$('wakeLockStatus').textContent='Schermo attivo: non supportato';return}
@@ -347,7 +364,7 @@ function bindEvents(){
   document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchPanel(t.dataset.panel));
   $('newExerciseBtn').onclick=()=>openExerciseForm();$('closeExerciseFormBtn').onclick=closeExerciseForm;$('cancelExerciseBtn').onclick=closeExerciseForm;$('exerciseForm').onsubmit=saveExercise;
   $('toggleArchiveBtn').onclick=()=>{const hidden=$('archivedSection').classList.toggle('hidden');$('toggleArchiveBtn').textContent=hidden?'Mostra esercizi archiviati':'Nascondi esercizi archiviati'};
-  $('workoutDate').onchange=()=>refreshWdSelect();$('workDaySelect').onchange=()=>{const wd=$('workDaySelect').value;if(wd)loadWorkoutForm($('workoutDate').value,wd);else renderWorkoutExercises([])};$('saveWorkoutBtn').onclick=saveWorkout;$('deleteWorkoutBtn').onclick=()=>openConfirm('Eliminare l’allenamento?',`Verrà eliminata la sessione del ${dateFmt.format(parseDate($('workoutDate').value))}.`,deleteCurrentWorkout);
+  $('workoutDate').onchange=()=>refreshWdSelect();$('workDaySelect').onchange=()=>{const wd=$('workDaySelect').value;if(wd)loadWorkoutForm($('workoutDate').value,wd);else renderWorkoutExercises([])};$('saveWorkoutBtn').onclick=saveWorkout;$('stickyTimerBtn').onclick=()=>{const card=$('workoutExercises').querySelector('.workout-exercise.timer-active')||$('workoutExercises').querySelector('.workout-exercise');if(card)startTimer(num(card.dataset.restSeconds),card.dataset.name)};$('deleteWorkoutBtn').onclick=()=>openConfirm('Eliminare l’allenamento?',`Verrà eliminata la sessione del ${dateFmt.format(parseDate($('workoutDate').value))}. Per confermare scrivi CANCELLA.`,deleteCurrentWorkout,true);
   $('analysisPeriod').onchange=refreshAnalysis;$('closeDetailBtn').onclick=()=>{$('exerciseDetail').classList.add('hidden');selectedDetailExerciseId=null};window.addEventListener('resize',()=>{if(selectedDetailExerciseId)showExerciseDetail(selectedDetailExerciseId,false)});
   $('exportJsonBtn').onclick=exportJson;$('shareJsonBtn').onclick=shareJson;$('exportCsvBtn').onclick=exportCsv;$('configureBackupBtn').onclick=configureAutoBackup;$('runAutoBackupBtn').onclick=()=>writeAutoBackup(true);$('importFile').onchange=e=>e.target.files[0]&&importData(e.target.files[0]);$('deleteAllBtn').onclick=()=>openConfirm('Cancellare tutto l’archivio?','L’operazione elimina esercizi, allenamenti e impostazioni. Esporta prima un backup.',deleteAllData,true);
   $('confirmWord').oninput=e=>$('confirmActionBtn').disabled=e.target.value.trim().toUpperCase()!=='CANCELLA';$('confirmDialog').addEventListener('close',async()=>{if($('confirmDialog').returnValue==='confirm'&&pendingConfirmAction)await pendingConfirmAction();pendingConfirmAction=null});
