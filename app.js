@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "2.0.0";
 const DB_NAME = "workout-log-db";
 const DB_VERSION = 1;
 const WD_MAX = 12;

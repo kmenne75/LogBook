@@ -1,4 +1,4 @@
-WORKOUT LOG — PWA v1.6
+WORKOUT LOG — PWA v2.0
 ======================
 
 FUNZIONI
@@ -99,3 +99,13 @@ NOVITÀ v1.6
 - Mantenuto separatamente il grafico del volume totale della sessione.
 - Storico esercizio ampliato con max volume serie e volume sessione.
 - Database locale invariato e compatibile con le versioni precedenti.
+
+
+NOVITÀ v2.0
+- Barra Cancella, Salva e Timer spostata nella parte alta della schermata di tracciamento.
+- Barra sticky sempre visibile durante lo scorrimento, senza interferire con la tastiera virtuale.
+- Rimossa la barra fissa in basso e il relativo spazio riservato su smartphone.
+- Data, Work Day, riepilogo, schede esercizio, serie e note resi più compatti.
+- Più serie ed esercizi visibili nello stesso viewport, mantenendo i controlli touch.
+- Database locale invariato e compatibile con tutte le versioni precedenti.
+- Cache offline e asset aggiornati alla versione 2.0.0.

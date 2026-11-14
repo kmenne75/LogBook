@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=1.6.0">
+  <link rel="stylesheet" href="styles.css?v=2.0.0">
 </head>
 <body>
 <header class="topbar">
@@ -38,27 +38,29 @@
 <main class="shell">
 
   <section id="tracking" class="panel active">
-    <div class="section-heading">
+    <div class="section-heading tracking-heading">
       <div><p class="eyebrow">Allenamento</p><h2>Registra la sessione</h2></div>
       <span id="trackingStatus" class="badge">Nuova sessione</span>
     </div>
-    <div class="selector-grid">
+    <div class="sticky-actions tracking-top-actions" aria-label="Azioni allenamento sempre visibili">
+      <button id="deleteWorkoutBtn" class="button danger hidden" type="button" aria-label="Elimina allenamento">Cancella</button>
+      <button id="saveWorkoutBtn" class="button primary" type="button">Salva</button>
+      <button id="stickyTimerBtn" class="button timer-action" type="button" disabled>Timer</button>
+    </div>
+    <div class="tracking-compact-header">
+    <div class="selector-grid tracking-selectors">
       <label class="field"><span>Data</span><input id="workoutDate" type="date"></label>
       <label class="field"><span>Work Day</span><select id="workDaySelect"><option value="">Configura prima gli esercizi</option></select></label>
     </div>
     <p id="workDayHint" class="hint compact-hint">Vengono mostrati solo i Work Day con almeno un esercizio attivo.</p>
     <div id="workoutSummary" class="workout-summary hidden" aria-live="polite">
-      <div><span>Volume Work Day</span><strong id="workoutTotalVolume">0 kg</strong></div>
+      <div><span>Volume</span><strong id="workoutTotalVolume">0 kg</strong></div>
       <div><span>Serie</span><strong id="workoutTotalSets">0</strong></div>
+    </div>
     </div>
     <div id="workoutExercises" class="workout-list"></div>
     <label class="field session-notes"><span>Note della sessione</span><textarea id="workoutNotes" rows="3" maxlength="800" placeholder="Sensazioni, tecnica, eventuali limitazioni..."></textarea></label>
     <div class="screen-status-row"><span id="wakeLockStatus" class="badge">Schermo attivo: in attesa</span></div>
-    <div class="sticky-actions" aria-label="Azioni allenamento">
-      <button id="deleteWorkoutBtn" class="button danger hidden" type="button" aria-label="Elimina allenamento">Elimina</button>
-      <button id="saveWorkoutBtn" class="button primary" type="button">Salva</button>
-      <button id="stickyTimerBtn" class="button timer-action" type="button" disabled>Timer</button>
-    </div>
     <p id="trackingMessage" class="message" role="status"></p>
   </section>
 
@@ -131,10 +133,10 @@
   </section>
 </main>
 
-<footer><span>Workout Log v1.6</span><span id="footerStatus">Database locale</span></footer>
+<footer><span>Workout Log v2.0</span><span id="footerStatus">Database locale</span></footer>
 
 <dialog id="confirmDialog"><form method="dialog" class="dialog-card"><h2 id="confirmTitle">Conferma</h2><p id="confirmText"></p><label id="confirmWordField" class="field hidden"><span>Scrivi CANCELLA</span><input id="confirmWord" autocomplete="off"></label><div class="actions"><button class="button secondary" value="cancel">Annulla</button><button id="confirmActionBtn" class="button danger" value="confirm">Conferma</button></div></form></dialog>
 
-<script src="app.js?v=1.6.0"></script>
+<script src="app.js?v=2.0.0"></script>
 </body>
 </html>
