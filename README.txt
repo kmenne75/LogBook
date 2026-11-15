@@ -1,4 +1,4 @@
-WORKOUT LOG — PWA v2.0
+WORKOUT LOG — PWA v2.0.1
 ======================
 
 FUNZIONI
@@ -108,4 +108,15 @@ NOVITÀ v2.0
 - Data, Work Day, riepilogo, schede esercizio, serie e note resi più compatti.
 - Più serie ed esercizi visibili nello stesso viewport, mantenendo i controlli touch.
 - Database locale invariato e compatibile con tutte le versioni precedenti.
-- Cache offline e asset aggiornati alla versione 2.0.0.
+- Cache offline e asset della release corrente aggiornati alla versione 2.0.1.
+
+
+CORREZIONE v2.0.1
+- Sostituita la barra superiore sticky con un Command Dock flottante laterale.
+- Salva e Timer restano disponibili come pulsanti compatti; Cancella è protetto nel comando Altro.
+- Il dock non appartiene al contenuto scorrevole e viene riposizionato rispetto al viewport realmente visibile.
+- La Visual Viewport API rileva apertura, ridimensionamento e spostamento della tastiera virtuale.
+- Durante la digitazione il dock si compatta e chiude automaticamente le azioni secondarie.
+- Il dock viene mostrato soltanto nella sezione Tracciatura.
+- Database, backup e modello dati rimangono invariati e compatibili.
+- Cache e asset applicativi aggiornati alla versione 2.0.1.

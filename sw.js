@@ -1,12 +1,12 @@
 "use strict";
 
-const CACHE = "workout-log-v2.0.0";
+const CACHE = "workout-log-v2.0.1";
 const OFFLINE_PAGE = "./index.html";
 const ASSETS = [
   "./",
   OFFLINE_PAGE,
-  "./styles.css?v=2.0.0",
-  "./app.js?v=2.0.0",
+  "./styles.css?v=2.0.1",
+  "./app.js?v=2.0.1",
   "./manifest.webmanifest",
   "./icons/icon.svg",
   "./icons/icon-192.png",

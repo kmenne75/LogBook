@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "2.0.1";
 const DB_NAME = "workout-log-db";
 const DB_VERSION = 1;
 const WD_MAX = 12;
@@ -76,6 +76,7 @@ function switchPanel(id) {
   document.querySelectorAll(".tab[data-panel]").forEach(t => t.classList.toggle("active", t.dataset.panel === id));
   document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === id));
   setMenuOpen(false);
+  if ($("commandDock")) $("commandDock").hidden=id!=="tracking";
   if (id === "analysis") refreshAnalysis();
   if (id === "backup") refreshBackupStatus();
 }
@@ -261,7 +262,9 @@ function updateStickyTimer(card = null) {
   const seconds=num(selected?.dataset.restSeconds);
   const button=$("stickyTimerBtn");
   button.disabled=!selected||seconds<=0;
-  button.textContent=selected?`Timer ${seconds}s`:"Timer";
+  const label=button.querySelector(".dock-label");
+  if(label) label.textContent=selected?`${seconds}s`:"Timer";
+  else button.textContent=selected?`Timer ${seconds}s`:"Timer";
   button.setAttribute("aria-label",selected?`Avvia timer di ${seconds} secondi per ${selected.dataset.name}`:"Timer non disponibile");
   button.title=selected?`${selected.dataset.name} · recupero configurato ${seconds}s`:"Seleziona un esercizio";
 }
@@ -422,6 +425,67 @@ async function refreshBackupStatus(){const last=await getSetting('lastBackupAt')
 async function deleteAllData(){await Promise.all([clear('exercises'),clear('workouts'),clear('settings')]);await reloadData();renderConfiguration();refreshWdSelect();refreshAnalysis();refreshBackupStatus();showMessage('backupMessage','Archivio cancellato.')}
 function openConfirm(title,text,action,requireWord=false){pendingConfirmAction=action;$('confirmTitle').textContent=title;$('confirmText').textContent=text;$('confirmWordField').classList.toggle('hidden',!requireWord);$('confirmWord').value='';$('confirmActionBtn').disabled=requireWord;$('confirmDialog').showModal()}
 
+
+let maxVisualViewportHeight = 0;
+function setCommandDockExpanded(expanded) {
+  const dock=$("commandDock"),extra=$("commandDockExtra"),toggle=$("commandDockToggle");
+  if(!dock||!extra||!toggle)return;
+  extra.hidden=!expanded;
+  dock.classList.toggle("dock-expanded",expanded);
+  toggle.setAttribute("aria-expanded",String(expanded));
+  toggle.setAttribute("aria-label",expanded?"Chiudi altre azioni":"Apri altre azioni");
+}
+function syncCommandDockActions(){
+  const remove=$("deleteWorkoutBtn"),toggle=$("commandDockToggle");
+  if(!remove||!toggle)return;
+  const available=!remove.classList.contains("hidden");
+  toggle.hidden=!available;
+  if(!available)setCommandDockExpanded(false);
+}
+function updateCommandDockViewport(resetMaximum=false){
+  const dock=$("commandDock");if(!dock)return;
+  const vv=window.visualViewport;
+  const height=vv?.height||window.innerHeight;
+  const offsetTop=vv?.offsetTop||0;
+  if(resetMaximum)maxVisualViewportHeight=height;
+  maxVisualViewportHeight=Math.max(maxVisualViewportHeight,height);
+  const keyboardOpen=maxVisualViewportHeight-height>120;
+  const minY=keyboardOpen?78:115;
+  const maxY=Math.max(minY,height-(keyboardOpen?98:145));
+  const preferred=height*(keyboardOpen ? .22 : .38);
+  let anchor=Math.round(Math.min(maxY,Math.max(minY,preferred)));
+  const active=document.activeElement;
+  if(keyboardOpen&&active?.matches?.("input,textarea,select")){
+    const rect=active.getBoundingClientRect(),dockHalf=76,center=rect.top+rect.height/2;
+    if(Math.abs(anchor-center)<dockHalf+rect.height/2+10){
+      const above=rect.top-dockHalf-12,below=rect.bottom+dockHalf+12;
+      if(above>=minY)anchor=Math.round(above);else if(below<=maxY)anchor=Math.round(below);
+    }
+  }
+  document.documentElement.style.setProperty("--dock-vv-top",`${Math.round(offsetTop)}px`);
+  document.documentElement.style.setProperty("--dock-anchor-y",`${anchor}px`);
+  dock.classList.toggle("keyboard-open",keyboardOpen);
+  document.body.classList.toggle("keyboard-visible",keyboardOpen);
+  if(keyboardOpen)setCommandDockExpanded(false);
+}
+function setupCommandDock(){
+  const dock=$("commandDock"),toggle=$("commandDockToggle"),remove=$("deleteWorkoutBtn");
+  if(!dock||!toggle||!remove)return;
+  toggle.addEventListener("click",event=>{event.stopPropagation();setCommandDockExpanded(toggle.getAttribute("aria-expanded")!=="true")});
+  dock.addEventListener("pointerdown",event=>event.stopPropagation());
+  document.addEventListener("pointerdown",()=>setCommandDockExpanded(false));
+  document.addEventListener("keydown",event=>{if(event.key==="Escape")setCommandDockExpanded(false)});
+  document.addEventListener("focusin",event=>{if(event.target.matches("input,textarea,select")){setCommandDockExpanded(false);setTimeout(()=>updateCommandDockViewport(),60)}});
+  new MutationObserver(syncCommandDockActions).observe(remove,{attributes:true,attributeFilter:["class"]});
+  syncCommandDockActions();
+  updateCommandDockViewport(true);
+  if(window.visualViewport){
+    visualViewport.addEventListener("resize",()=>updateCommandDockViewport());
+    visualViewport.addEventListener("scroll",()=>updateCommandDockViewport());
+  }else addEventListener("resize",()=>updateCommandDockViewport());
+  addEventListener("orientationchange",()=>setTimeout(()=>updateCommandDockViewport(true),250));
+}
+
 function bindEvents(){
   document.querySelectorAll('.tab[data-panel]').forEach(t=>t.onclick=()=>switchPanel(t.dataset.panel));$('menuToggleBtn').onclick=()=>setMenuOpen($('mainMenu').hidden);$('menuBackdrop').onclick=()=>setMenuOpen(false);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('mainMenu').hidden){setMenuOpen(false);$('menuToggleBtn').focus()}});
   $('newExerciseBtn').onclick=()=>openExerciseForm();$('closeExerciseFormBtn').onclick=closeExerciseForm;$('cancelExerciseBtn').onclick=closeExerciseForm;$('exerciseForm').onsubmit=saveExercise;
@@ -457,5 +521,5 @@ async function registerServiceWorker(){
     await registration.update();
   }catch(error){console.warn('Aggiornamento offline non disponibile.',error)}
 }
-async function init(){try{buildWdControls();bindEvents();$('workoutDate').value=localISODate();db=await openDb();await reloadData();renderConfiguration();refreshWdSelect();refreshAnalysis();refreshBackupStatus();updateWakeLockStatus();requestWakeLock();registerServiceWorker()}catch(e){console.error(e);showMessage('trackingMessage','Impossibile inizializzare il database locale.',true)}}
+async function init(){try{buildWdControls();bindEvents();setupCommandDock();$('workoutDate').value=localISODate();db=await openDb();await reloadData();renderConfiguration();refreshWdSelect();refreshAnalysis();refreshBackupStatus();updateWakeLockStatus();requestWakeLock();registerServiceWorker()}catch(e){console.error(e);showMessage('trackingMessage','Impossibile inizializzare il database locale.',true)}}
 init();
